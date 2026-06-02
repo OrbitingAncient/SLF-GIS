@@ -1,9 +1,10 @@
+shiny
+pandas
 numpy
-scipy
 matplotlib
 meteostat
 geopy
-faicons
-shiny
-pandas
 rasterio
+folium
+reportlab
+python-dotenv

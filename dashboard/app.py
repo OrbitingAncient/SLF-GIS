@@ -1,503 +1,265 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from faicons import icon_svg
-
-from meteostat import Hourly
-from datetime import datetime
+import meteostat as ms
+from datetime import datetime, timedelta
 from geopy.distance import geodesic
-
 import pandas as pd
+import logging
+import rasterio
+from rasterio.plot import show
+import folium
+from pathlib import Path
+import io
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
 
-# Import data from shared.py
-from shared import app_dir
+# Setup logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
 from shiny import App, reactive, render, ui
 
-import rasterio
-from scipy.ndimage import rotate
-import matplotlib.colors as mcolors
-import os
+# Import shared
+from shared import app_dir
 
-## ----- Temperature information ------
+# ====================== CONFIG ======================
+FARMS = {
+    "Shoreline Fruit (Main)": (44.83444, -85.44333),
+    "Old Mission Peninsula": (44.95, -85.52),
+    "Leelanau Peninsula": (44.88, -85.75),
+    "Antrim County": (44.99, -85.20)
+}
 
-def C_to_F(c):
+DEFAULT_FARM = "Shoreline Fruit (Main)"
+
+STATIONS = {
+    "TVC": ms.Station("KTVC0", 44.7416, -85.5824),
+    "ACB": ms.Station("KACB0", 44.9886, -85.1984)
+}
+
+DATA_DIR = Path("data")
+
+# ====================== HELPERS ======================
+def C_to_F(c): 
     return c * 9/5 + 32
 
-# create a time frame, we are looking at april 2025 - june 2025
-start = datetime(2025, 2, 1)
-end = datetime(2025, 5, 31)
+def get_current_dates():
+    today = datetime.now()
+    start = datetime(today.year if today.month >= 3 else today.year - 1, 2, 1)
+    end = today + timedelta(days=60)
+    return start, end
 
-# station IDs 
-tvc_id = 'KTVC0'
-acb_id = 'KACB0'
+def load_weather_data():
+    try:
+        start, end = get_current_dates()
+        logger.info(f"Fetching weather from {start.date()} to {end.date()}")
+        df_tvc = ms.hourly(STATIONS["TVC"], start, end).fetch()
+        df_acb = ms.hourly(STATIONS["ACB"], start, end).fetch()
+        logger.info("Weather loaded successfully")
+        return df_tvc, df_acb
+    except Exception as e:
+        logger.error(f"Weather failed: {e}")
+        return pd.DataFrame(), pd.DataFrame()
 
-# Fetch data from NOAA using meteostat
-df_tvc = Hourly(tvc_id, start, end).fetch()
-df_acb = Hourly(acb_id, start, end).fetch()
+df_tvc, df_acb = load_weather_data()
 
-def interpolateTemp(df1, df2, coord1, coord2, lat, lon):
-    """
-    Interpolate data of two locations. 
-    
-    Inputs
-    ------
-    df1, df2: DataFrames with datetime index and 'temp' columns (Celsius)
-    coord1, coord2: (lat, lon) tuples of each station
-    lat, lon: coordinates of interpolation point
-    
-    Returns
-    -------
-    DataFrame for interpolation point.
-    """
-    # Calculate distances (in km) from each station to the target location
-    d1 = geodesic(coord1, (lat, lon)).km
-    d2 = geodesic(coord2, (lat, lon)).km
-    w1 = 1/d1
-    w2 = 1/d2
-    w_sum = w1 + w2
+def interpolate_temp(df1, df2, coord1, coord2, lat, lon):
+    try:
+        if df1.empty or df2.empty:
+            return pd.DataFrame(columns=['temp_interp'])
+        d1 = geodesic(coord1, (lat, lon)).km
+        d2 = geodesic(coord2, (lat, lon)).km
+        w1 = 1 / d1 if d1 > 0 else 1
+        w2 = 1 / d2 if d2 > 0 else 1
+        w_sum = w1 + w2
 
-    # Align on datetimes present in both series (inner join)
-    merged = pd.merge(df1[['temp']], df2[['temp']], left_index=True, right_index=True, suffixes=('_1', '_2'))
-
-    # Weighted temperature at each hour
-    merged['temp_interp'] = (merged['temp_1'] * w1 + merged['temp_2'] * w2) / w_sum
-
-    # Index: datetime, columns: temp_interp (°C)
-    return merged[['temp_interp']]
-
-# Station coordinates:
-coord_tvc = (44.7416, -85.5824)   # TVC
-coord_acb = (44.9886, -85.1984)   # ACB
-
-# Shoreline Fruit's orchard:
-cherrylat, cherrylon = 44.83444, -85.44333
-
-df_interp = interpolateTemp(
-    df_tvc, df_acb,
-    coord_tvc, coord_acb,
-    cherrylat, cherrylon
-)
-
-#chill hour counter, this can be edited to your preferred model
-interp_chill = pd.DataFrame(index=df_interp.index)
-interp_chill['chill_score'] = np.select(
-    [
-        (df_interp['temp_interp'] >= 0) & (df_interp['temp_interp'] < 7.22222),
-        (df_interp['temp_interp'] >= 7.22222) & (df_interp['temp_interp'] < 15.5556),
-        (df_interp['temp_interp'] >= 15.5556)
-    ],
-    [1, 0, -1],
-    default=0
-)
-interp_chill['chill_accum'] = interp_chill['chill_score'].cumsum()
-
-#GDD counter
-interp_chill['temp_interp_F'] = C_to_F(df_interp['temp_interp'])
-interp_chill['gdd_hr'] = np.maximum(interp_chill['temp_interp_F'] - 41, 0) / 24
-
-# chill_threshold = 250
-# if (interp_chill['chill_accum'] >= chill_threshold).any():
-#     first_gdd_time = interp_chill[interp_chill['chill_accum'] >= chill_threshold].index[0]
-#     interp_chill['gdd_hr_masked'] = np.where(interp_chill.index >= first_gdd_time, interp_chill['gdd_hr'], 0)
-# else:
-#     interp_chill['gdd_hr_masked'] = 0.0
-
-# interp_chill['gdd_cum'] = interp_chill['gdd_hr_masked'].cumsum()
-
-df_interp.index = pd.to_datetime(df_interp.index)
-df_tvc.index = pd.to_datetime(df_tvc.index)
-df_acb.index = pd.to_datetime(df_acb.index)
-
-unique_dates = pd.to_datetime(df_interp.index.date).unique()
-
-def _selected_five_days(idx):
-    if idx > len(unique_dates) - 5:
-        idx = len(unique_dates) - 5
-    days = unique_dates[idx:idx+5]
-    # Convert to list of `datetime.date`
-    days_list = [d.date() if hasattr(d, 'date') else d for d in days]
-    df_days_interp = df_interp[np.isin(df_interp.index.date, days_list)]
-    df_days_tvc   = df_tvc[np.isin(df_tvc.index.date, days_list)]
-    df_days_acb   = df_acb[np.isin(df_acb.index.date, days_list)]
-    return df_days_interp, df_days_tvc, df_days_acb, days
-
-def _dayplot(idx):
-    df_days_interp, df_days_tvc, df_days_acb, days = _selected_five_days(idx)
-    fig, ax = plt.subplots(figsize=(4,4))
-    
-    # plt.tight_layout(rect=[0, 0, 0.8, 1])  # Leaves space for legend
-    # ax.legend(by_label.values(), by_label.keys(), loc='center left', bbox_to_anchor=(1.05, 0.5), frameon=True)
-    
-    # Plot, using full datetime so the x-axis spans 5*24 points
-    if not df_days_interp.empty:
-        ax.plot(df_days_interp.index, C_to_F(df_days_interp['temp_interp']), label='Interpolated Temp (Orchard)', color='red', linewidth=1.5)
-    if not df_days_tvc.empty:
-        ax.plot(df_days_tvc.index, C_to_F(df_days_tvc['temp']), alpha=0.4, label='TVC (Cherry Capital Airport)', color='red', linewidth=1)
-    if not df_days_acb.empty:
-        ax.plot(df_days_acb.index, C_to_F(df_days_acb['temp']), alpha=0.4, label='ACB (Antrim County Airport)', color='red', linewidth=1)
-    ax.set_xlabel("Date/Hour")
-    
-    x_vals = df_days_interp.index
-    day_starts = [i for i, t in enumerate(x_vals) if t.hour == 0]
-    ax.set_xticks(x_vals)
-    labels = ['' for _ in x_vals]
-    for i in day_starts:
-        labels[i] = x_vals[i].strftime('%m-%d')
-    ax.set_xticklabels(labels, rotation=0, fontsize=10)
-    
-    ax.set_ylabel("Temperature (F)")
-    ax.set_title(f"{str(days[0])[:10]} to {str(days[-1])[:10]}")
-    ax.axhspan(ymin=C_to_F(7.2222), ymax=C_to_F(15.5556), facecolor='grey', alpha=0.3, label="moderate temp, zero weight")
-    ax.axhspan(ymin=C_to_F(15.5556), ymax=C_to_F(35), facecolor='pink', alpha=0.3, label="high temp, negative weight")
-    ax.axhspan(ymin=C_to_F(0), ymax=C_to_F(7.22222), facecolor='lightblue', alpha=0.3, label="optimal chill temp, positive weight")
-    ax.axhline(C_to_F(0), color='darkblue', alpha=0.4, linestyle=':', linewidth=1.5, label='32°F (Freezing)')
-    ax.grid(True)
-    ax.xaxis.grid(True, color='lightgray', alpha=0.2)
-    ax.yaxis.grid(True, color='lightgray', alpha=0.2)
-    # plt.tight_layout()
-
-def compute_gdd_cum(threshold=250):
-    if (interp_chill['chill_accum'] >= threshold).any():
-        first_gdd_time = interp_chill[interp_chill['chill_accum'] >= threshold].index[0]
-        interp_chill['gdd_hr_masked'] = np.where(interp_chill.index >= first_gdd_time, interp_chill['gdd_hr'], 0)
-    else:
-        interp_chill['gdd_hr_masked'] = 0.0
-
-    gdd_cum = interp_chill['gdd_hr_masked'].cumsum()
-    return gdd_cum
-
-
-def _longterm_plot(threshold=250, idx=0, ideal_gdd=230):
-    from matplotlib.gridspec import GridSpec
-    fig = plt.figure(figsize=(12, 8))
-    gs = GridSpec(3, 1, hspace=0.1)
-    ax1 = plt.subplot(gs[0]) #regular temp v time subplot,
-    ax2 = plt.subplot(gs[1], sharex=ax1)  #chill hours subplot
-    ax3 = plt.subplot(gs[2], sharex=ax1)
-
-    gdd_cum = compute_gdd_cum(threshold=threshold)
-
-    # --------- Highlight 5-day window ---------
-    if idx > len(unique_dates) - 5:
-        idx = len(unique_dates) - 5
-    window_start = pd.to_datetime(unique_dates[idx])
-    window_end = pd.to_datetime(unique_dates[idx + 5 - 1]) + pd.Timedelta(hours=23)
-    for ax in (ax1, ax2, ax3):
-        ax.axvspan(window_start, window_end, color="gold", alpha=0.15, zorder=0)
+        merged = pd.merge(df1[['temp']], df2[['temp']], 
+                         left_index=True, right_index=True, 
+                         suffixes=('_1', '_2'), how='inner')
         
-    # --------- Highlight Bloom windows --------
-    bloom_windows = _bloom_windows()
-    for window_dates in bloom_windows:
-        start = pd.to_datetime(window_dates[0])
-        end = pd.to_datetime(window_dates[-1]) + pd.Timedelta(hours=23)
-        for ax in (ax1, ax2, ax3):
-            ax.axvspan(start, end, color="purple", alpha=0.12, zorder=0)
+        if not merged.empty:
+            merged['temp_interp'] = (merged['temp_1'] * w1 + merged['temp_2'] * w2) / w_sum
+            return merged[['temp_interp']]
+        return pd.DataFrame(columns=['temp_interp'])
+    except Exception as e:
+        logger.error(f"Interpolation error: {e}")
+        return pd.DataFrame(columns=['temp_interp'])
 
-    ax1.plot(df_interp.index, C_to_F(df_interp['temp_interp']), label='Interpolated temp. of orchard)', color='red', linewidth=1 )
-    ax1.axhspan(ymin=C_to_F(7.2222), ymax=C_to_F(15.5556), facecolor='grey', alpha=0.3, label="moderate temp, zero weight")
-    ax1.axhspan(ymin=C_to_F(15.5556), ymax=C_to_F(35), facecolor='pink', alpha=0.3, label="high temp, negative weight")
-    ax1.axhspan(ymin=C_to_F(0), ymax=C_to_F(7.22222), facecolor='lightblue', alpha=0.3, label="optimal chill temp, positive weight")
-    ax1.axhline(C_to_F(0), color='darkblue', alpha=0.4, linestyle=':', linewidth=1.5, label='32°F (Freezing)')
-    
-    ax2.plot(interp_chill.index, interp_chill['chill_accum'], label="Accumulated Chill hours", color="cornflowerblue")
-    # ax2.axhline(threshold, color='blue', linestyle='--', label='1200 Chill hours')
-    reached = interp_chill[interp_chill['chill_accum'] >= threshold]
-    if not reached.empty:
-     first_time = reached.index[0]
-     first_accum = reached['chill_accum'].iloc[0]
-    else:
-     first_time = None
-    if first_time is not None:
-      ax2.plot(first_time, first_accum, 'ro', label=f"First Reached 250 ({first_time.strftime('%Y-%m-%d %H:%M')})")
-      ax2.axvline(first_time, color='red', linestyle=':', alpha=0.6)
+def load_ebi_raster():
+    try:
+        tifs = sorted(DATA_DIR.glob("**/*.tif"), key=lambda x: x.stat().st_mtime, reverse=True)
+        if tifs:
+            with rasterio.open(tifs[0]) as src:
+                return src.read(1), src.transform, tifs[0].name
+        return None, None, None
+    except Exception as e:
+        logger.warning(f"Raster load failed: {e}")
+        return None, None, None
 
-    ax3.plot(interp_chill.index, gdd_cum, color='olive', label='Accumulated GDD (F>41)', linewidth=2)
-    ax3.axhline(ideal_gdd, color='red', linestyle=':', alpha=0.6, label=f'Ideal GDD ({ideal_gdd})')
-    
-    for ax in (ax1, ax2, ax3):
-        plt.setp(ax.get_xticklabels(), fontsize=5, ha='center')
-    ax3.set_xlabel("Time")
-    ax1.set_ylabel("°F", rotation=0, labelpad=20, fontsize=7, ha='center')
-    ax2.set_ylabel("CP", rotation=0, labelpad=15, fontsize=7, ha='center')
-    ax3.set_ylabel("GDD", rotation=0, labelpad=15, fontsize=7, ha='center')
-
-def _plot_ebi_planetscope(file="20250311.tif"):
-    epsilon = 1e-6
-    fdat = rasterio.open(file)
-    blue  = fdat.read(1).astype(float) / 10000.0
-    green = fdat.read(2).astype(float) / 10000.0
-    red   = fdat.read(3).astype(float) / 10000.0
-    nir   = fdat.read(4).astype(float) / 10000.0
-
-    # Compute EBI
-    ebi = (red + green + blue) / (green / (blue + epsilon) + epsilon) / (red - blue + 256)
-    ebi_norm = (ebi - np.nanmin(ebi)) / (np.nanmax(ebi) - np.nanmin(ebi) + epsilon)
-
-    # Compute NDVI for vegetation mask
-    ndvi = (nir - red) / (nir + red + epsilon)
-
-    # Vegetation mask
-    veg_mask = ndvi > 0.5  # adjust threshold if needed
-
-    # Apply mask: keep EBI where vegetation, set non-veg to 0 (black)
-    ebi_masked = np.zeros_like(ebi_norm)
-    ebi_masked[veg_mask] = ebi_norm[veg_mask]
-
-    # Rotation correction
-    ebi_rotated = rotate(ebi_masked, -1, reshape=False, order=1, mode='constant', cval=0)
-    ebi_plot = np.ma.masked_equal(ebi_rotated, 0)
-
-    # Custom cyan -> orange colormap
-    cmap = mcolors.LinearSegmentedColormap.from_list("cyan_orange", ["cyan", "red"])
-
-    # Plot with automatic rotation correction
-    # fig = plt.figure(figsize=(8, 8))
-    # ax = fig.add_subplot(1, 1, 1)  # let matplotlib handle axes placement automatically
-    # im = ax.imshow(ebi_plot, cmap=cmap, vmin=0.0, vmax=0.5)
-    # cbar = fig.colorbar(im, ax=ax, fraction=0.02, label="EBI (Blossom Intensity)")
-    # ax.set_title(f"EBI with Vegetation Mask - {os.path.basename(tif_path)}")
-    # ax.axis("off")
-
-    fig = plt.figure(figsize=(8, 8))
-    im = plt.imshow(ebi_plot, cmap=cmap, vmin=0.0, vmax=0.5)
-    cbar = fig.colorbar(im, fraction=0.02, label="EBI (Blossom Intensity)")
-    plt.title(f"EBI - {os.path.basename(file)}")
-    plt.axis("off")
-    total_ebi = np.sum(ebi_norm[veg_mask])
-    return total_ebi
-
-def _bloom_windows():
-    
-    epsilon = 10e-6
-    
-    bloom_windows = []
-    n = len(unique_dates)
-    for idx in range(n - 4):
-        window = unique_dates[idx:idx+5]
-        window_dates = unique_dates[idx:idx+5]
-        found_file = None
-        for d in window_dates:
-            date_str = pd.to_datetime(d).strftime("%Y%m%d")
-            candidate = f"./data/planetscope/{date_str}.tif"
-            if os.path.exists(candidate):
-                found_file = candidate
-                break
-        if found_file is not None:
-            fdat = rasterio.open(found_file)
-            blue  = fdat.read(1).astype(float) / 10000.0
-            green = fdat.read(2).astype(float) / 10000.0
-            red   = fdat.read(3).astype(float) / 10000.0
-            nir   = fdat.read(4).astype(float) / 10000.0
-            no_of_pixels = blue.size
-
-            # Compute EBI
-            ebi = (red + green + blue) / (green / (blue + epsilon) + epsilon) / (red - blue + 256)
-            ebi_norm = (ebi - np.nanmin(ebi)) / (np.nanmax(ebi) - np.nanmin(ebi) + epsilon)
-
-            # Compute NDVI for vegetation mask
-            ndvi = (nir - red) / (nir + red + epsilon)
-
-            # Vegetation mask
-            veg_mask = ndvi > 0.5  # adjust threshold if needed
-
-            # Apply mask: keep EBI where vegetation, set non-veg to 0 (black)
-            ebi_masked = np.zeros_like(ebi_norm)
-            ebi_masked[veg_mask] = ebi_norm[veg_mask]
-            total_ebi = np.sum(ebi_norm[veg_mask])
-            avg_ebi = total_ebi / no_of_pixels
-            
-            if (avg_ebi > 0.25 and avg_ebi < 0.27): bloom_windows.append(window)
-            
-    intervals = []
-    for window_dates in bloom_windows:
-        start = pd.to_datetime(window_dates[0])
-        end = pd.to_datetime(window_dates[-1]) + pd.Timedelta(hours=23)
-        intervals.append((start, end))
-
-    # Sort intervals by start time
-    intervals.sort(key=lambda x: x[0])
-
-    # Merge overlapping intervals
-    merged = []
-    for interval in intervals:
-        if not merged:
-            merged.append(list(interval))
-        else:
-            last = merged[-1]
-            # Calculate the gap in days between last[1] and interval[0]
-            gap_days = (interval[0] - last[1]).days
-            if interval[0] <= last[1] or gap_days < 7:
-                # Overlap or less than 10 days apart: merge
-                last[1] = max(last[1], interval[1])
-            else:
-                merged.append(list(interval))
-            
-            
-    return merged
-            
-            
-            
-
-
-
-## ------- App UI --------
-
-
+# ====================== UI ======================
 app_ui = ui.page_sidebar(
     ui.sidebar(
-        ui.input_slider("date_slider", "Select the start day of 5 day period:",
-                min=0, max=len(unique_dates)-5, value=90, step=5, ticks=False),
-        ui.input_slider("chill_threshold", "Chill Points Threshold:",
-                min=0, max=1000, value=250, step=10, ticks=False),
-        ui.input_slider("ideal_gdd", "Ideal GDD Value:",
-                min=0, max=800, value=300, step=5, ticks=False),
-        ui.input_radio_buttons(
-            "satellite",
-            "Satellite data",
-            choices=["PlanetScope", "Sentinel-2"],
-            selected="PlanetScope"
-        )#, title="Date Filter",
-    ),
-    ui.layout_columns(
-        # ui.card(
-            # ui.card_header("Temperature Detail of 5 day Period"),
-            ui.output_plot("dayplot"),
-            # full_screen=True,
-        # ),
-        # ui.card(
-            # ui.card_header("Enhanced Bloom Index (EBI)"),
-            ui.output_plot("plot_ebi_planetscope"),
-            # full_screen=True,
-        # ),
-    ),
-    ui.layout_columns(
-        # ui.card(
-            # ui.card_header("Blossoming Season"),
-            ui.output_plot("longterm_plot"),
-            # full_screen=True,
-        # ),
+        ui.input_select("farm_select", "Select Farm:", choices=list(FARMS.keys()), selected=DEFAULT_FARM),
+        ui.input_slider("date_slider", "5-Day Window Start:", min=0, max=100, value=50, step=5),
+        width="360px"
     ),
     ui.layout_column_wrap(
-        ui.value_box(
-            "Chill Points accumulated",
-            ui.output_text("chill_point_count"),
-            showcase=icon_svg("snowflake"),
-        ),
-        ui.value_box(
-            "GDD accumulated",
-            ui.output_text("gdd_cum"),
-            showcase=icon_svg("leaf"),
-        ),
-        ui.value_box(
-            "Total EBI",
-            ui.output_text("ebi_total"),
-            showcase=icon_svg("clover"),
-        ),
-        fill=False,
+        ui.card(ui.card_header("🌡️ 5-Day Temperature"), ui.output_plot("dayplot"), full_screen=True),
+        ui.card(ui.card_header("🗺️ Interactive Map"), ui.output_ui("interactive_map"), full_screen=True),
+        width=1/2
+    ),
+    ui.card(ui.card_header("🌸 Enhanced Bloom Index (EBI)"), ui.output_plot("ebi_plot"), full_screen=True),
+    ui.card(ui.card_header("📈 Trends & Frost Risk"), ui.output_plot("longterm_plot"), full_screen=True),
+    ui.layout_column_wrap(
+        ui.value_box("❄️ Chill Hours", ui.output_text("chill_points"), showcase=icon_svg("snowflake"), theme="primary"),
+        ui.value_box("🌱 GDD Accumulated", ui.output_text("gdd_value"), showcase=icon_svg("seedling"), theme="success"),
+        ui.value_box("🌸 Bloom Strength", ui.output_text("ebi_total"), showcase=icon_svg("leaf"), theme="warning"),
+        ui.value_box("⚠️ Frost Alert", ui.output_text("frost_alert"), showcase=icon_svg("bell"), theme="danger"),
+        fill=False
+    ),
+    ui.div(
+        ui.download_button("download_csv", "📥 Export Data (CSV)"),
+        ui.download_button("download_pdf", "📄 Export Full Report (PDF)"),
+        style="text-align: center; margin: 20px 0; padding: 10px;"
     ),
     ui.include_css(app_dir / "styles.css"),
-    title="MI cherry blooming versus temperature",
-    fillable=True,
+    title="Cherry Phenology Dashboard • Traverse City 2026",
+    fillable=True
 )
 
-
+# ====================== SERVER ======================
 def server(input, output, session):
     
-    curr_total_ebi = reactive.Value(0.0)
+    @reactive.calc
+    def selected_farm_coord():
+        return FARMS[input.farm_select()]
     
     @reactive.calc
-    def get_ebi_total():
-        return curr_total_ebi.get()
+    def interpolated_data():
+        lat, lon = selected_farm_coord()
+        coord1 = (STATIONS["TVC"].latitude, STATIONS["TVC"].longitude)
+        coord2 = (STATIONS["ACB"].latitude, STATIONS["ACB"].longitude)
+        return interpolate_temp(df_tvc, df_acb, coord1, coord2, lat, lon)
     
     @output
     @render.plot
     def dayplot():
-        idx = input.date_slider()
-        _dayplot(idx)
+        df = interpolated_data()
+        fig, ax = plt.subplots(figsize=(10, 6))
+        if not df.empty:
+            temps_f = C_to_F(df['temp_interp'])
+            ax.plot(df.index, temps_f, color='#e74c3c', linewidth=2.5, label='Orchard Temp')
+            ax.axhline(32, color='blue', linestyle='--', label='Freezing')
+            ax.set_title(f"5-Day Temperature - {input.farm_select()}")
+            ax.set_ylabel("Temperature (°F)")
+            ax.legend()
+            ax.grid(True, alpha=0.3)
+            plt.xticks(rotation=45)
+        plt.tight_layout()
+        return fig
+
+    @output
+    @render.ui
+    def interactive_map():
+        lat, lon = selected_farm_coord()
+        m = folium.Map(location=[lat, lon], zoom_start=13, tiles="CartoDB positron")
+        folium.Marker([lat, lon], popup=f"<b>{input.farm_select()}</b>", 
+                     icon=folium.Icon(color="red", icon="tree")).add_to(m)
+        return ui.HTML(m._repr_html_())
+
+    @output
+    @render.plot
+    def ebi_plot():
+        data, transform, filename = load_ebi_raster()
+        fig, ax = plt.subplots(figsize=(9, 9))
+        if data is not None:
+            show(data, ax=ax, cmap='viridis')
+            ax.set_title(f"EBI - {filename}")
+        else:
+            plt.text(0.5, 0.5, "No EBI Raster Found\n\nPlace .tif files in dashboard/data/", 
+                    ha='center', va='center', fontsize=14)
+        plt.tight_layout()
+        return fig
 
     @output
     @render.plot
     def longterm_plot():
-     _longterm_plot(input.chill_threshold(), input.date_slider(), input.ideal_gdd())
+        df = interpolated_data()
+        fig, ax = plt.subplots(figsize=(12, 7))
+        if not df.empty:
+            temps_f = C_to_F(df['temp_interp'])
+            ax.plot(df.index, temps_f.rolling(24).mean(), label='24h Avg Temp', color='orange', linewidth=2)
+            ax.set_title("Temperature Trend")
+            ax.set_ylabel("Temperature (°F)")
+            ax.legend()
+            ax.grid(True, alpha=0.3)
+        plt.tight_layout()
+        return fig
 
-    @reactive.calc
-    def filtered_df():
-        filt_df = df[df["species"].isin(input.species())]
-        filt_df = filt_df.loc[filt_df["body_mass_g"] < input.mass()]
-        return filt_df
-    
     @output
-    @render.plot
-    def plot_ebi_planetscope():
-        idx = input.date_slider()
-        
-        if idx > len(unique_dates) - 5:
-            idx = len(unique_dates)
-            
-        window_dates = unique_dates[idx:idx+5]
-        found_file = None
-        for d in window_dates:
-            date_str = pd.to_datetime(d).strftime("%Y%m%d")
-            candidate = f"./data/planetscope/{date_str}.tif"
-            if os.path.exists(candidate):
-                found_file = candidate
-                break
-        if found_file is None:
-            plt.text(0, 0.5, "No satellite data found")
-            plt.axis('off')
-            curr_total_ebi.set(0.0)
-            return
-    
-        total_ebi = _plot_ebi_planetscope(file=found_file)
-        curr_total_ebi.set(total_ebi)
-        
-            
     @render.text
-    def chill_point_count():
-        # Get idx of 5-day window start
-        idx = input.date_slider()
-        if idx > len(unique_dates) - 5:
-            idx = len(unique_dates) - 5
-        # Calculate last date in window
-        end_day = unique_dates[idx + 5 - 1]  # Inclusive last day of window
+    def chill_points():
+        df = interpolated_data()
+        if df.empty: return "N/A"
+        chill = ((df['temp_interp'] >= 0) & (df['temp_interp'] < 7.22)).sum()
+        return f"{int(chill)} hours"
 
-        # Find the last timestamp (hour) within the last day of window
-        mask = interp_chill.index.date == end_day.date() if hasattr(end_day, 'date') else end_day
-        sub = interp_chill[mask]
-        if len(sub) > 0:
-            last_chill = sub['chill_accum'].iloc[-1]
-            return f"{last_chill:.0f}"
-        else:
-            return "N/A"
-
+    @output
     @render.text
-    def gdd_cum():
-        gdd_cum_value = compute_gdd_cum(threshold=input.chill_threshold())
-        idx = input.date_slider()
-        if idx > len(unique_dates) - 5:
-            idx = len(unique_dates) - 5
-        end_day = unique_dates[idx + 5 - 1]
-        mask = interp_chill.index.date == end_day.date() if hasattr(end_day, 'date') else end_day
-        sub = interp_chill[mask]
-        if len(sub) > 0:
-            last_gdd = gdd_cum_value.iloc[-1]
-            return f"{last_gdd:.1f}"
-        else:
-            return "N/A"
-        
+    def gdd_value():
+        df = interpolated_data()
+        if df.empty: return "N/A"
+        gdd = (df['temp_interp'] - 5).clip(lower=0).sum() / 24
+        return f"{int(gdd)} GDD"
+
+    @output
     @render.text
     def ebi_total():
-        return f"{get_ebi_total():.2f}"
+        data, _, _ = load_ebi_raster()
+        if data is not None:
+            return f"Active (Max: {data.max():.2f})"
+        return "Pending Raster"
 
-    @render.data_frame
-    def summary_statistics():
-        cols = [
-            "species",
-            "island",
-            "bill_length_mm",
-            "bill_depth_mm",
-            "body_mass_g",
-        ]
-        return render.DataGrid(filtered_df()[cols], filters=True)
+    @output
+    @render.text
+    def frost_alert():
+        df = interpolated_data()
+        if df.empty: return "No data"
+        recent_min_f = C_to_F(df['temp_interp'].tail(48).min())
+        if recent_min_f < 34:
+            return f"⚠️ FROST RISK - {recent_min_f:.1f}°F"
+        elif recent_min_f < 38:
+            return f"⚠️ Watch - {recent_min_f:.1f}°F"
+        return "✅ No immediate risk"
 
+    # Export handlers
+    @output
+    @render.download
+    def download_csv():
+        df = interpolated_data()
+        if df.empty:
+            df = pd.DataFrame({"status": ["No data available"]})
+        return df.to_csv(index=True)
+
+    @output
+    @render.download
+    def download_pdf():
+        buf = io.BytesIO()
+        c = canvas.Canvas(buf, pagesize=letter)
+        c.setFont("Helvetica-Bold", 18)
+        c.drawString(100, 750, f"Cherry Dashboard Report - {input.farm_select()}")
+        c.setFont("Helvetica", 12)
+        c.drawString(100, 720, f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+        c.drawString(100, 690, f"Chill Hours: {chill_points()}")
+        c.drawString(100, 670, f"GDD Accumulated: {gdd_value()}")
+        c.drawString(100, 650, f"Frost Alert: {frost_alert()}")
+        c.drawString(100, 630, f"Bloom Strength: {ebi_total()}")
+        c.save()
+        buf.seek(0)
+        return buf.getvalue()
 
 app = App(app_ui, server)
+
+if __name__ == "__main__":
+    app.run()
