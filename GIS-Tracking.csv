@@ -1,0 +1,14 @@
+Category,Item,Source,Current Status in App,Notes
+Phenology,Growth Stages (Swollen Bud → Post-bloom),Your image + MSU thresholds,Phenology Reference tab,10% & 90% GDD for Sweet/Tart
+Pest Models,Plum Curculio,Enviroweather,Linked in Data Management,Model available
+Pest Models,Cherry Leaf Spot,Enviroweather (Williamsburg),Linked in Data Management,Pre-filtered to wmt
+Pest Models,Spotted Wing Drosophila,Enviroweather,Linked in Data Management,Model available
+Pest Guide,Full Sweet Cherry Pest Guide,MSU Extension (your image),Pest & Disease Calendar tab,GDD thresholds + timing
+Weather,Hourly Temperature + GDD,Enviroweather + NOAA (via Meteostat),Multiple tabs,Per station/farm
+Weather,Chill Hours,Calculated from data,Overview + GDD tab,—
+Risk,Frost Risk,Calculated from data,Overview,Based on recent mins
+Satellite,Enhanced Bloom Index (EBI),Your .tif files (Sentinel/Planet),EBI Explorer tab,Works with new rasters
+Harvest Decision,GDD Since Bloom + Days to Target,User input + live data,Overview,Custom target GDD
+Data Management,Station availability + GDD values,Manual export from Enviroweather,Data Management & Reference,Table + links
+Reference,All key Enviroweather stations,Your list,Data Management & Reference,Direct links
+IPM Resources,MSU Fruit IPM page,canr.msu.edu,Linked in multiple places,—
