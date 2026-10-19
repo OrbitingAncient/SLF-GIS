@@ -1,14 +1,17 @@
 Category,Item,Source,Current Status in App,Notes
-Phenology,Growth Stages (Swollen Bud → Post-bloom),Your image + MSU thresholds,Phenology Reference tab,10% & 90% GDD for Sweet/Tart
-Pest Models,Plum Curculio,Enviroweather,Linked in Data Management,Model available
-Pest Models,Cherry Leaf Spot,Enviroweather (Williamsburg),Linked in Data Management,Pre-filtered to wmt
-Pest Models,Spotted Wing Drosophila,Enviroweather,Linked in Data Management,Model available
-Pest Guide,Full Sweet Cherry Pest Guide,MSU Extension (your image),Pest & Disease Calendar tab,GDD thresholds + timing
-Weather,Hourly Temperature + GDD,Enviroweather + NOAA (via Meteostat),Multiple tabs,Per station/farm
-Weather,Chill Hours,Calculated from data,Overview + GDD tab,—
-Risk,Frost Risk,Calculated from data,Overview,Based on recent mins
-Satellite,Enhanced Bloom Index (EBI),Your .tif files (Sentinel/Planet),EBI Explorer tab,Works with new rasters
-Harvest Decision,GDD Since Bloom + Days to Target,User input + live data,Overview,Custom target GDD
-Data Management,Station availability + GDD values,Manual export from Enviroweather,Data Management & Reference,Table + links
-Reference,All key Enviroweather stations,Your list,Data Management & Reference,Direct links
-IPM Resources,MSU Fruit IPM page,canr.msu.edu,Linked in multiple places,—
+Phenology,Montmorency stages (side green → petal fall),Zavalloni 2006,Phenology tab,GDD base 4C from 1 Mar
+Phenology,MSU GDD42 full bloom ~360,MSU Extension NW reports,Overview + Phenology,Labeled separately from Zavalloni
+Chill,Simple 32–45F hours,Common tart-cherry band,Overview + Phenology,Oct 1–Apr 30
+Chill,Utah model 954 CU,Anderson 1986 / Richardson 1974,Overview KPIs,Does not go negative
+Weather,Hourly temp/RH/precip/wind,Open-Meteo,Weather + Overview,Cached per region/season
+Weather,Airport fallback,Meteostat/NOAA,Fallback only,TVC ACB MBL etc.
+Risk,Stage-aware frost,MSU critical temps + 72h min,Frost & NWS tab,Not a wind-machine command
+Risk,Active alerts,api.weather.gov,Frost & NWS tab,Frost/freeze highlighted
+Satellite,Enhanced Bloom Index,PlanetScope local TIFFs + Chen 2019,Bloom & satellite tab,Real EBI not raw band 1
+Satellite,Bloom time series,Computed from 50 2025 scenes,Bloom & satellite tab,Mean + p90 + 2025 bloom window
+Pest,Plum curculio / CLS / SWD,MSU Enviroweather,Pest calendar tab,Deep links only — no spray advice
+Farms,11 MI growing regions,Public centroids / stations,Sidebar + map,Not internal block polygons
+Harvest,Days since bloom,User bloom date,Overview,No fake harvest GDD
+Export,CSV + PDF,Local weather + KPIs,Reports tab,PDF includes week chart
+Reference,Ground-truth bloom dates,data/reference/ground_truth.csv,Data sources tab,Editable
+IPM Resources,MSU Fruit IPM,canr.msu.edu,Pest calendar,Official

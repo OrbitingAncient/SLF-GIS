@@ -1,0 +1,4 @@
+{
+  "pin": "",
+  "note": "Copy to auth.json and set pin to require unlock before field-log edits. Leave pin empty for no login."
+}

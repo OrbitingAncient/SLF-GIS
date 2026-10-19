@@ -1,0 +1,147 @@
+{
+  "organization": "Shoreline Fruit INC",
+  "hq": {
+    "name": "Williamsburg processing / HQ area",
+    "address": "10106 US Highway 31 N, Williamsburg, MI 49690",
+    "lat": 44.8153,
+    "lon": -85.4445
+  },
+  "disclaimer": "Coordinates are public region centroids or nearest MSU Enviroweather / airport locations, not internal orchard block polygons.",
+  "regions": [
+    {
+      "id": "williamsburg_gt",
+      "name": "Williamsburg / Grand Traverse",
+      "zone": "Northern Michigan",
+      "county": "Grand Traverse",
+      "lat": 44.8153,
+      "lon": -85.4445,
+      "crop": "Montmorency tart cherry",
+      "acres_note": "Core northern production; HQ and hydro-cool / process area",
+      "enviroweather": {"id": "wmt", "name": "Williamsburg", "url": "https://enviroweather.msu.edu/stations/wmt"},
+      "airport": {"id": "KTVC", "name": "Cherry Capital (Traverse City)", "lat": 44.7416, "lon": -85.5824},
+      "has_planetscope": true
+    },
+    {
+      "id": "traverse_city",
+      "name": "Traverse City / Old Mission area",
+      "zone": "Northern Michigan",
+      "county": "Grand Traverse",
+      "lat": 44.8831,
+      "lon": -85.6777,
+      "crop": "Montmorency tart cherry",
+      "enviroweather": {"id": "nwm", "name": "Traverse City", "url": "https://enviroweather.msu.edu/stations/nwm"},
+      "airport": {"id": "KTVC", "name": "Cherry Capital (Traverse City)", "lat": 44.7416, "lon": -85.5824},
+      "has_planetscope": false
+    },
+    {
+      "id": "leelanau",
+      "name": "Leelanau Peninsula",
+      "zone": "Northern Michigan",
+      "county": "Leelanau",
+      "lat": 44.9636,
+      "lon": -85.7444,
+      "crop": "Montmorency tart cherry",
+      "enviroweather": {"id": "llu", "name": "Lake Leelanau", "url": "https://enviroweather.msu.edu/stations/llu"},
+      "airport": {"id": "KTVC", "name": "Cherry Capital (Traverse City)", "lat": 44.7416, "lon": -85.5824},
+      "has_planetscope": false
+    },
+    {
+      "id": "elk_rapids",
+      "name": "Elk Rapids",
+      "zone": "Northern Michigan",
+      "county": "Antrim",
+      "lat": 44.8448,
+      "lon": -85.4062,
+      "crop": "Montmorency tart cherry",
+      "enviroweather": {"id": "elk", "name": "Elk Rapids", "url": "https://enviroweather.msu.edu/stations/elk"},
+      "airport": {"id": "KACB", "name": "Antrim County", "lat": 44.9886, "lon": -85.1984},
+      "has_planetscope": false
+    },
+    {
+      "id": "antrim_kewadin",
+      "name": "Antrim / Kewadin",
+      "zone": "Northern Michigan",
+      "county": "Antrim",
+      "lat": 45.0010,
+      "lon": -85.3500,
+      "crop": "Montmorency tart cherry",
+      "enviroweather": {"id": "elk", "name": "Elk Rapids", "url": "https://enviroweather.msu.edu/stations/elk"},
+      "airport": {"id": "KACB", "name": "Antrim County", "lat": 44.9886, "lon": -85.1984},
+      "has_planetscope": false
+    },
+    {
+      "id": "benzie",
+      "name": "Benzie / Benzonia",
+      "zone": "Northern Michigan",
+      "county": "Benzie",
+      "lat": 44.6200,
+      "lon": -86.1500,
+      "crop": "Montmorency tart cherry",
+      "enviroweather": {"id": "bnz", "name": "Benzonia", "url": "https://enviroweather.msu.edu/stations/bnz"},
+      "airport": {"id": "KMBL", "name": "Manistee County", "lat": 44.2725, "lon": -86.2469},
+      "has_planetscope": false
+    },
+    {
+      "id": "manistee",
+      "name": "Manistee County",
+      "zone": "Northern Michigan",
+      "county": "Manistee",
+      "lat": 44.2500,
+      "lon": -86.3200,
+      "crop": "Montmorency tart cherry",
+      "enviroweather": {"id": "mne", "name": "Manistee", "url": "https://enviroweather.msu.edu/"},
+      "airport": {"id": "KMBL", "name": "Manistee County", "lat": 44.2725, "lon": -86.2469},
+      "has_planetscope": false
+    },
+    {
+      "id": "mason_ludington",
+      "name": "Mason / Ludington",
+      "zone": "West Central Michigan",
+      "county": "Mason",
+      "lat": 43.9550,
+      "lon": -86.4500,
+      "crop": "Montmorency tart cherry",
+      "enviroweather": {"id": "lud", "name": "Ludington", "url": "https://enviroweather.msu.edu/"},
+      "airport": {"id": "KLDM", "name": "Mason County (Ludington)", "lat": 43.9625, "lon": -86.4079},
+      "has_planetscope": false
+    },
+    {
+      "id": "oceana_hart",
+      "name": "Oceana / Hart–Mears",
+      "zone": "West Central Michigan",
+      "county": "Oceana",
+      "lat": 43.7000,
+      "lon": -86.3500,
+      "crop": "Montmorency tart cherry",
+      "acres_note": "High-acreage west-central production",
+      "enviroweather": {"id": "hrt", "name": "Hart / WCMREC", "url": "https://enviroweather.msu.edu/stations/hrt"},
+      "airport": {"id": "KMKG", "name": "Muskegon County", "lat": 43.1695, "lon": -86.2382},
+      "has_planetscope": false
+    },
+    {
+      "id": "van_buren",
+      "name": "Van Buren / South Haven",
+      "zone": "Southwest Michigan",
+      "county": "Van Buren",
+      "lat": 42.4000,
+      "lon": -86.2500,
+      "crop": "Montmorency tart cherry",
+      "acres_note": "Southern/central Michigan production (~1,500 acres company-wide in this belt)",
+      "enviroweather": {"id": "shv", "name": "South Haven area", "url": "https://enviroweather.msu.edu/"},
+      "airport": {"id": "KLWA", "name": "South Haven Area Regional", "lat": 42.3512, "lon": -86.2561},
+      "has_planetscope": false
+    },
+    {
+      "id": "berrien",
+      "name": "Berrien / Benton Harbor",
+      "zone": "Southwest Michigan",
+      "county": "Berrien",
+      "lat": 42.0800,
+      "lon": -86.3600,
+      "crop": "Montmorency tart cherry",
+      "enviroweather": {"id": "swm", "name": "Benton Harbor / SWMREC", "url": "https://enviroweather.msu.edu/stations/swm"},
+      "airport": {"id": "KBEH", "name": "Southwest Michigan Regional", "lat": 42.1286, "lon": -86.4285},
+      "has_planetscope": false
+    }
+  ]
+}

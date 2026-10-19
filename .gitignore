@@ -1,0 +1,32 @@
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.env
+.env.*
+!.env.example
+config/auth.json
+data/reference/ui_state.json
+data/reference/color_firmness.csv
+data/enviroweather/*.csv
+.DS_Store
+Thumbs.db
+*.log
+
+# Local caches and generated products
+data/weather/*.csv
+data/weather/*.json
+data/processed/*
+!data/processed/.gitkeep
+dashboard/data/*
+!dashboard/data/.gitkeep
+
+# Notebook checkpoints
+.ipynb_checkpoints/

@@ -1,0 +1,86 @@
+{
+  "crop": "Montmorency tart cherry (Prunus cerasus)",
+  "notes": "Numbers are published research / MSU Extension reference values. Field scouting always overrides the model.",
+  "chill": {
+    "simple": {
+      "name": "Simple chill hours",
+      "temp_min_c": 0.0,
+      "temp_max_c": 7.22,
+      "requirement_hours": 1000,
+      "window": "Oct 1 (prior year) through April 30",
+      "source": "Common 32–45°F band used for tart cherry; README cites 1200+ hours for many MI tart blocks"
+    },
+    "utah": {
+      "name": "Utah model (Richardson 1974)",
+      "requirement_cu": 954,
+      "window": "Oct 1 (prior year) through rest completion",
+      "source": "Anderson et al. 1986 / Zavalloni phenology work: 954 chill units for Montmorency"
+    }
+  },
+  "gdd": {
+    "zavalloni": {
+      "name": "Zavalloni (base 4°C from 1 Mar)",
+      "base_c": 4.0,
+      "start": "03-01",
+      "source": "Zavalloni et al. 2006, J. Amer. Soc. Hort. Sci. 131:601–607"
+    },
+    "msu_base42": {
+      "name": "MSU Enviroweather-style (base 42°F from 1 Jan)",
+      "base_c": 5.56,
+      "start": "01-01",
+      "full_bloom_gdd": 360,
+      "source": "MSU Extension NW Michigan fruit reports: tart cherry full bloom ~360 GDD base 42"
+    },
+    "post_chill": {
+      "name": "Post-chill GDD (base 41°F after chill met)",
+      "base_c": 5.0,
+      "bloom_gdd": 240,
+      "source": "README / typical 230–250 GDD after chill for Montmorency bloom"
+    }
+  },
+  "stages_zavalloni_from_mar1_base4c": [
+    {"id": "side_green", "label": "Side green", "gdd": 120, "critical_temp_f": 18},
+    {"id": "green_tip", "label": "Green tip", "gdd": 144, "critical_temp_f": 22},
+    {"id": "tight_cluster", "label": "Tight cluster", "gdd": 164, "critical_temp_f": 25},
+    {"id": "open_cluster", "label": "Open cluster", "gdd": 180, "critical_temp_f": 26},
+    {"id": "first_white", "label": "First white", "gdd": 198, "critical_temp_f": 27},
+    {"id": "first_bloom", "label": "First bloom", "gdd": 218, "critical_temp_f": 28},
+    {"id": "full_bloom", "label": "Full bloom", "gdd": 243, "critical_temp_f": 28},
+    {"id": "petal_fall", "label": "Petal fall", "gdd": 301, "critical_temp_f": 28}
+  ],
+  "frost": {
+    "watch_f": 38,
+    "risk_f": 34,
+    "hard_freeze_f": 28,
+    "note": "Critical temperatures are approximate killing temps at 10% injury for the current stage. Use MSU critical-temperature sheets for spray/wind-machine decisions."
+  },
+  "known_events": [
+    {
+      "season": 2025,
+      "region_id": "williamsburg_gt",
+      "event": "first_bloom",
+      "date": "2025-04-29",
+      "source": "News / challenge README"
+    }
+  ],
+  "pest_watch_windows": [
+    {
+      "name": "Plum curculio",
+      "timing": "Petal fall through shuck split; activity increases as temps warm after bloom",
+      "enviroweather": "https://enviroweather.msu.edu/crops/cherry/plumcurculio",
+      "note": "Use the Enviroweather model. This dashboard does not recommend sprays."
+    },
+    {
+      "name": "Cherry leaf spot",
+      "timing": "From petal fall through harvest whenever leaf-wetness + temperature thresholds are met",
+      "enviroweather": "https://enviroweather.msu.edu/crops/cherry/cherryleafspot?selectedStation=wmt",
+      "note": "Infection periods are wetness-driven. Link is pre-filtered to Williamsburg."
+    },
+    {
+      "name": "Spotted wing drosophila",
+      "timing": "Fruit coloring / ~530 GDD base 4°C onward for tart cherry susceptibility (MSU prototype risk model)",
+      "enviroweather": "https://enviroweather.msu.edu/crops/cherry/spottedwingdrosophila",
+      "note": "Color change is the field trigger. GDD is a planning aid only."
+    }
+  ]
+}

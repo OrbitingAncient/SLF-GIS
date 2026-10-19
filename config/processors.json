@@ -1,0 +1,34 @@
+{
+  "plants": [
+    {
+      "id": "williamsburg",
+      "name": "Williamsburg hydro-cool / process",
+      "region_id": "williamsburg_gt",
+      "color_min": 3,
+      "brix_min": 11.0,
+      "window_start": "07-10",
+      "window_end": "08-10",
+      "notes": "Tart Montmorency for dry, juice, and IQF. Color 1 green to 5 full red."
+    },
+    {
+      "id": "oceana",
+      "name": "West central receiving",
+      "region_id": "oceana_hart",
+      "color_min": 3,
+      "brix_min": 11.0,
+      "window_start": "07-05",
+      "window_end": "07-30",
+      "notes": "Oceana / Hart belt. Earlier than Grand Traverse."
+    },
+    {
+      "id": "southwest",
+      "name": "Southwest receiving",
+      "region_id": "berrien",
+      "color_min": 3,
+      "brix_min": 11.5,
+      "window_start": "07-01",
+      "window_end": "07-20",
+      "notes": "Berrien / Van Buren. First fruit of the year."
+    }
+  ]
+}

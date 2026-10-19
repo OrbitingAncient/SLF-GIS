@@ -1,0 +1,75 @@
+{
+  "crop": "Montmorency tart cherry (Prunus cerasus)",
+  "purpose": "Estimate mechanical-harvest windows per Shoreline Fruit growing region. Field color, firmness, and processor specs override the model.",
+  "dafb": {
+    "name": "Days after full bloom",
+    "start": 60,
+    "peak": 65,
+    "end": 72,
+    "source": "MSU Extension / industry: tart cherries typically 60–70 days blossom to harvest; USDA RMA usual Michigan dates imply ~60–75 DAFB by region"
+  },
+  "gdd_after_bloom": {
+    "name": "GDD base 4°C after full bloom (Zavalloni heat units)",
+    "base_c": 4.0,
+    "color_start": 700,
+    "harvest_start": 850,
+    "harvest_peak": 950,
+    "harvest_end": 1100,
+    "source": "Zavalloni et al. 2006 use GDD base 4°C for Montmorency fruit growth. Peak ~950 after bloom ≈ 65 days at typical June–July orchard temperatures. Labeled as a heat-unit analog, not the unpublished double-sigmoid coefficients."
+  },
+  "gdd42_from_mar1": {
+    "name": "MSU-style GDD base 42°F from 1 March",
+    "base_c": 5.56,
+    "nwmhrc_harvest_example": 2040,
+    "harvest_peak": 2000,
+    "source": "NWMHRC 2020 growth-stage sheet: tart fruit harvested near 2040 GDD42 (from Mar 1). Bloom that year was ~370 GDD42."
+  },
+  "swd": {
+    "green_safe_gdd4_from_mar1": 530,
+    "color_risk_dafb": 45,
+    "source": "MSU NW Hort: SWD did not infest at ~530 GDD base 4°C (green fruit). Color change is the field trigger (Rothwell / Good Fruit Grower)."
+  },
+  "usda_rma_usual": {
+    "source": "USDA RMA tart cherry feasibility handbook, usual bloom and harvesting dates",
+    "northwest": {
+      "bloom_start": "05-10",
+      "bloom_end": "05-25",
+      "harvest_begin": "07-10",
+      "peak_start": "07-15",
+      "peak_end": "08-10",
+      "harvest_end": "08-25"
+    },
+    "west_central": {
+      "bloom_start": "05-05",
+      "bloom_end": "05-20",
+      "harvest_begin": "07-05",
+      "peak_start": "07-10",
+      "peak_end": "07-30",
+      "harvest_end": "08-10"
+    },
+    "southwest": {
+      "bloom_start": "05-01",
+      "bloom_end": "05-10",
+      "harvest_begin": "07-01",
+      "peak_start": "07-05",
+      "peak_end": "07-20",
+      "harvest_end": "07-25"
+    }
+  },
+  "nwmhrc_mean_bloom": {
+    "month": 5,
+    "day": 13,
+    "source": "NWMHRC Traverse City full-bloom dates, Montmorency, long-term mean ~May 10–13 (1983–2021 sheet)"
+  },
+  "ops": {
+    "max_precip_mm_48h": 2.0,
+    "prior_rain_mm_72h": 8.0,
+    "heat_soft_f": 86.0,
+    "heat_hard_f": 90.0,
+    "note": "Mechanical harvest runs day and night; hydro-cool target 35°F. Dry fruit and moderate temperatures protect color and firmness for the processor."
+  },
+  "satellite": {
+    "rgi_color_threshold": 1.05,
+    "note": "PlanetScope red/green index is a coarse canopy-scale color proxy, not fruit-level Brix. Use only as supporting evidence when summer scenes exist."
+  }
+}
